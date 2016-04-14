@@ -64,8 +64,7 @@ resource "aws_security_group" "default" {
 
 resource "aws_instance" "mesos" {
 
-
-  count = "3"
+  count =  "${var.mesos_instance_count}"
 
   private_ip = "${lookup(var.instance_ips, count.index)}"
 
@@ -79,7 +78,7 @@ resource "aws_instance" "mesos" {
 }
 
 resource "null_resource" "mesos_provisioner" {
-  count = "3"
+  count =  "${var.mesos_instance_count}"
 
   connection {
     user = "ubuntu"
@@ -93,5 +92,9 @@ resource "null_resource" "mesos_provisioner" {
       "curl -sSL https://get.docker.com/ | sudo sh"
     ]
   }
+
 }
+
+
+
 

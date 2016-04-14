@@ -7,11 +7,19 @@ variable "AWS_SECRET_ACCESS_KEY" {
 }
 
 
+variable "mesos_instance_count" { 
+    default = "3"  
+}
+
+
 variable "instance_ips" {
   default = {
     "0" = "10.124.1.100"
     "1" = "10.124.1.101"
     "2" = "10.124.1.102"
+    "3" = "10.124.1.103"
+    "4" = "10.124.1.104"
+    "5" = "10.124.1.105"
   }
 }
 
