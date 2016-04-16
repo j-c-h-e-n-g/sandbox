@@ -1,7 +1,3 @@
-/*
-launch a set of nginx instances behind an ELB .. behind a VPC (10.124.0.0/16)
-*/
-
 provider "aws" {
     access_key = "${var.AWS_ACCESS_KEY_ID}"
     secret_key = "${var.AWS_SECRET_ACCESS_KEY}"
@@ -33,7 +29,7 @@ resource "aws_subnet" "default" {
 
 resource "aws_security_group" "default" {
   name        = "allow-ssh-and-http-from-vpc"
-  description = "Used in the terraform"
+  description = "managed via Terraform"
   vpc_id      = "${aws_vpc.default.id}"
 
   # SSH access from anywhere
@@ -61,39 +57,150 @@ resource "aws_security_group" "default" {
   }
 }
 
+/****
+For this use case, it's Mesos on AWS and doens't span cloud providers --
+i.e. AWS, Azure and SoftLayer together
 
-resource "aws_instance" "mesos" {
+.. therefore, the zookkeeper SG is just via the internal subnet
 
-  count =  "${var.mesos_instance_count}"
+*/
 
-  private_ip = "${lookup(var.instance_ips, count.index)}"
+resource "aws_security_group" "mesos-master" {
+  name        = "allow-mesos-master"
+  description = "managed via Terraform"
+  vpc_id      = "${aws_vpc.default.id}"
+
+  ingress {
+    from_port   = 5051
+    to_port     = 5051
+    protocol    = "tcp"
+    cidr_blocks = ["10.124.0.0/16"]
+  }
+}
+
+resource "aws_security_group" "mesos-slave" {
+  name        = "allow-mesos-slave"
+  description = "managed via Terraform"
+  vpc_id      = "${aws_vpc.default.id}"
+
+  ingress {
+    from_port   = 5050
+    to_port     = 5050
+    protocol    = "tcp"
+    cidr_blocks = ["10.124.0.0/16"]
+  }
+}
+
+resource "aws_security_group" "zookeeper" {
+  name        = "allow-zookeeper"
+  description = "managed via Terraform"
+  vpc_id      = "${aws_vpc.default.id}"
+
+  ingress {
+    from_port   = 2181
+    to_port     = 2181
+    protocol    = "tcp"
+    cidr_blocks = ["10.124.0.0/16"]
+  }
+}
+
+
+/*
+zookeeper will live on this node, with quorum 1
+*/
+
+resource "aws_instance" "master1" {
+
+  private_ip = "10.124.1.100"
 
   instance_type = "${var.aws_instance_type}"
   ami = "${lookup(var.aws_amis, var.aws_region)}"
   key_name = "${var.key_name}"
 
-  vpc_security_group_ids = ["${aws_security_group.default.id}"]
+  vpc_security_group_ids = [
+    "${aws_security_group.default.id}", 
+    "${aws_security_group.mesos-master.id}", 
+    "${aws_security_group.zookeeper.id}"
+  ]
   subnet_id = "${aws_subnet.default.id}"
-
-}
-
-resource "null_resource" "mesos_provisioner" {
-  count =  "${var.mesos_instance_count}"
 
   connection {
     user = "ubuntu"
     key_file = "${var.key_path}"
-    host = "${element(aws_instance.mesos.*.public_ip, count.index)}"
   }
 
   provisioner "remote-exec" {
     inline = [
-      /* Install docker */ 
-      "curl -sSL https://get.docker.com/ | sudo sh"
+      /* Install docker */
+      "curl -sSL https://get.docker.com/ | sudo sh",
+      "sudo apt-get -y install python-pip && sudo pip install docker-compose"
     ]
   }
 
 }
+
+
+resource "aws_instance" "slave1" {
+
+  private_ip = "10.124.1.101"
+
+  instance_type = "${var.aws_instance_type}"
+  ami = "${lookup(var.aws_amis, var.aws_region)}"
+  key_name = "${var.key_name}"
+
+  vpc_security_group_ids = [
+    "${aws_security_group.default.id}", 
+    "${aws_security_group.mesos-master.id}", 
+    "${aws_security_group.zookeeper.id}"
+  ]
+  subnet_id = "${aws_subnet.default.id}"
+
+  connection {
+    user = "ubuntu"
+    key_file = "${var.key_path}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      /* Install docker */
+      "curl -sSL https://get.docker.com/ | sudo sh",
+      "sudo apt-get -y install python-pip && sudo pip install docker-compose"
+    ]
+  }
+
+}
+
+
+resource "aws_instance" "slave2" {
+
+  private_ip = "10.124.1.102"
+
+  instance_type = "${var.aws_instance_type}"
+  ami = "${lookup(var.aws_amis, var.aws_region)}"
+  key_name = "${var.key_name}"
+
+  vpc_security_group_ids = [
+    "${aws_security_group.default.id}", 
+    "${aws_security_group.mesos-master.id}", 
+    "${aws_security_group.zookeeper.id}"
+  ]
+  subnet_id = "${aws_subnet.default.id}"
+
+  connection {
+    user = "ubuntu"
+    key_file = "${var.key_path}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      /* Install docker */
+      "curl -sSL https://get.docker.com/ | sudo sh",
+      "sudo apt-get -y install python-pip && sudo pip install docker-compose"
+    ]
+  }
+
+}
+
 
 
 
