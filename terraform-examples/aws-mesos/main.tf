@@ -133,7 +133,7 @@ resource "aws_instance" "master1" {
     inline = [
       /* Install docker */
       "curl -sSL https://get.docker.com/ | sudo sh",
-      "sudo apt-get -y install python-pip && sudo pip install docker-compose"
+      "sudo apt-get -y install python-pip git && sudo pip install docker-compose"
     ]
   }
 
@@ -195,7 +195,7 @@ resource "aws_instance" "slave2" {
     inline = [
       /* Install docker */
       "curl -sSL https://get.docker.com/ | sudo sh",
-      "sudo apt-get -y install python-pip && sudo pip install docker-compose"
+      "sudo apt-get -y install python-pip git && sudo pip install docker-compose"
     ]
   }
 

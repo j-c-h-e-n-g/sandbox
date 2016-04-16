@@ -1,0 +1,38 @@
+
+zookeeper:
+  container_name: zookeeper
+  image: mesoscloud/zookeeper:3.4.6-ubuntu-14.04
+  net: host
+  restart: always
+  environment:
+   - MYID=1
+   - SERVERS:$MASTER_EC2_INTERNAL
+
+mesosmaster:
+  container_name: master
+  image: mesoscloud/mesos-master:0.24.1-ubuntu-14.04
+  net: host
+  restart: always
+  environment:
+   - MESOS_HOSTNAME=$MASTER_EC2_INTERNAL
+   - MESOS_IP=$MASTER_EC2_INTERNAL 
+   - MESOS_ZK=zk://$MASTER_EC2_INTERNAL:2181/mesos
+   - MESOS_LOG_DIR=/var/log/mesos
+   - MESOS_QUORUM=1
+#    - MESOS_REGISTRY=in_memory
+   - MESOS_WORK_DIR=/var/lib/mesos
+
+marathon: 
+  container_name: marathon
+  image: mesoscloud/marathon:0.11.0-ubuntu-15.04 
+  net: host
+  restart: always
+  environment:
+   - MARATHON_HOSTNAME=$MASTER_EC2_INTERNAL
+   - MARATHON_HTTP_ADDRESS=$MASTER_EC2_INTERNAL
+   - MARATHON_HTTPS_ADDRESS=$MASTER_EC2_INTERNAL
+
+   # we can have multiple marathons, so zookeeper tracks leader
+   - MARATHON_MASTER=zk://$MASTER_EC2_INTERNAL:2181/mesos
+   - MARATHON_ZK=zk://$MASTER_EC2_INTERNAL:2181/marathon
+   # - MARATHON_QUORUM=
